@@ -129,7 +129,7 @@ func CreateHeadWithSeries(t testing.TB, j int, opts HeadGenOptions) (*tsdb.Head,
 		}
 
 		for _, c := range chunkMetas {
-			chEnc, err := chks.Chunk(c.Ref)
+			chEnc, err := chks.Chunk(c)
 			testutil.Ok(t, err)
 
 			// Open Chunk.
