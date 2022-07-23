@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -22,17 +23,24 @@ import (
 	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/thanos-io/thanos/pkg/api/status"
+
+	"github.com/thanos-io/objstore"
+
 	"github.com/thanos-io/thanos/pkg/block/metadata"
 	"github.com/thanos-io/thanos/pkg/component"
 	"github.com/thanos-io/thanos/pkg/errutil"
 	"github.com/thanos-io/thanos/pkg/exemplars"
-	"github.com/thanos-io/thanos/pkg/objstore"
 	"github.com/thanos-io/thanos/pkg/shipper"
 	"github.com/thanos-io/thanos/pkg/store"
 	"github.com/thanos-io/thanos/pkg/store/labelpb"
 )
 
-type GetStatsFunc func(tenantID, statsByLabelName string) *tsdb.Stats
+type TSDBStats interface {
+	// TenantStats returns TSDB head stats for the given tenants.
+	// If no tenantIDs are provided, stats for all tenants are returned.
+	TenantStats(statsByLabelName string, tenantIDs ...string) []status.TenantStats
+}
 
 type MultiTSDB struct {
 	dataDir         string
@@ -384,16 +392,49 @@ func (t *MultiTSDB) TSDBExemplars() map[string]*exemplars.TSDB {
 	return res
 }
 
-func (t *MultiTSDB) Stats(tenantID, statsByLabelName string) *tsdb.Stats {
+func (t *MultiTSDB) TenantStats(statsByLabelName string, tenantIDs ...string) []status.TenantStats {
 	t.mtx.RLock()
 	defer t.mtx.RUnlock()
-
-	tenant, ok := t.tenants[tenantID]
-	if !ok {
-		return nil
+	if len(tenantIDs) == 0 {
+		for tenantID := range t.tenants {
+			tenantIDs = append(tenantIDs, tenantID)
+		}
 	}
 
-	return tenant.readyS.get().db.Head().Stats(statsByLabelName)
+	var (
+		mu     sync.Mutex
+		wg     sync.WaitGroup
+		result = make([]status.TenantStats, 0, len(t.tenants))
+	)
+	for _, tenantID := range tenantIDs {
+		tenantInstance, ok := t.tenants[tenantID]
+		if !ok {
+			continue
+		}
+
+		wg.Add(1)
+		go func(tenantID string, tenantInstance *tenant) {
+			defer wg.Done()
+			db := tenantInstance.readyS.Get()
+			if db == nil {
+				return
+			}
+			stats := db.Head().Stats(statsByLabelName)
+
+			mu.Lock()
+			defer mu.Unlock()
+			result = append(result, status.TenantStats{
+				Tenant: tenantID,
+				Stats:  stats,
+			})
+		}(tenantID, tenantInstance)
+	}
+	wg.Wait()
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Tenant < result[j].Tenant
+	})
+	return result
 }
 
 func (t *MultiTSDB) startTSDB(logger log.Logger, tenantID string, tenant *tenant) error {
