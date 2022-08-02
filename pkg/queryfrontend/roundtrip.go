@@ -9,13 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cortexproject/cortex/pkg/querier/queryrange"
-	"github.com/cortexproject/cortex/pkg/util/validation"
+	"github.com/thanos-io/thanos/pkg/querysharding"
 
 	"github.com/go-kit/log"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/thanos-io/thanos/internal/cortex/querier/queryrange"
+	"github.com/thanos-io/thanos/internal/cortex/util/validation"
 )
 
 const (
@@ -52,7 +54,11 @@ func NewTripperware(config Config, reg prometheus.Registerer, logger log.Logger)
 	queryRangeCodec := NewThanosQueryRangeCodec(config.QueryRangeConfig.PartialResponseStrategy)
 	labelsCodec := NewThanosLabelsCodec(config.LabelsConfig.PartialResponseStrategy, config.DefaultTimeRange)
 
-	queryRangeTripperware, err := newQueryRangeTripperware(config.QueryRangeConfig, queryRangeLimits, queryRangeCodec,
+	queryRangeTripperware, err := newQueryRangeTripperware(
+		config.QueryRangeConfig,
+		queryRangeLimits,
+		queryRangeCodec,
+		config.NumShards,
 		prometheus.WrapRegistererWith(prometheus.Labels{"tripperware": "query_range"}, reg), logger, config.ForwardHeaders)
 	if err != nil {
 		return nil, err
@@ -137,6 +143,7 @@ func newQueryRangeTripperware(
 	config QueryRangeConfig,
 	limits queryrange.Limits,
 	codec *queryRangeCodec,
+	numShards int,
 	reg prometheus.Registerer,
 	logger log.Logger,
 	forwardHeaders []string,
@@ -201,6 +208,13 @@ func newQueryRangeTripperware(
 			queryRangeMiddleware,
 			queryrange.InstrumentMiddleware("retry", m),
 			queryrange.NewRetryMiddleware(logger, config.MaxRetries, queryrange.NewRetryMiddlewareMetrics(reg)),
+		)
+	}
+
+	if numShards > 0 {
+		queryRangeMiddleware = append(
+			queryRangeMiddleware,
+			PromQLShardingMiddleware(querysharding.NewQueryAnalyzer(), numShards, limits, codec),
 		)
 	}
 

@@ -9,10 +9,7 @@ import (
 	"time"
 
 	"github.com/NYTimes/gziphandler"
-	cortexfrontend "github.com/cortexproject/cortex/pkg/frontend"
-	"github.com/cortexproject/cortex/pkg/frontend/transport"
-	"github.com/cortexproject/cortex/pkg/querier/queryrange"
-	cortexvalidation "github.com/cortexproject/cortex/pkg/util/validation"
+	extflag "github.com/efficientgo/tools/extkingpin"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/oklog/run"
@@ -22,8 +19,10 @@ import (
 	"github.com/weaveworks/common/user"
 	"gopkg.in/yaml.v2"
 
-	extflag "github.com/efficientgo/tools/extkingpin"
-
+	cortexfrontend "github.com/thanos-io/thanos/internal/cortex/frontend"
+	"github.com/thanos-io/thanos/internal/cortex/frontend/transport"
+	"github.com/thanos-io/thanos/internal/cortex/querier/queryrange"
+	cortexvalidation "github.com/thanos-io/thanos/internal/cortex/util/validation"
 	"github.com/thanos-io/thanos/pkg/api"
 	"github.com/thanos-io/thanos/pkg/component"
 	"github.com/thanos-io/thanos/pkg/extkingpin"
@@ -135,6 +134,8 @@ func registerQueryFrontend(app *extkingpin.App) {
 		"If no headers match 'anonymous' will be used.").PlaceHolder("<http-header-name>").StringsVar(&cfg.orgIdHeaders)
 
 	cmd.Flag("query-frontend.forward-header", "List of headers forwarded by the query-frontend to downstream queriers, default is empty").PlaceHolder("<http-header-name>").StringsVar(&cfg.ForwardHeaders)
+
+	cmd.Flag("query-frontend.vertical-shards", "Number of shards to use when distributing shardable PromQL queries. For more details, you can refer to the Vertical query sharding proposal: https://thanos.io/tip/proposals-accepted/202205-vertical-query-sharding.md").IntVar(&cfg.NumShards)
 
 	cmd.Flag("log.request.decision", "Deprecation Warning - This flag would be soon deprecated, and replaced with `request.logging-config`. Request Logging for logging the start and end of requests. By default this flag is disabled. LogFinishCall : Logs the finish call of the requests. LogStartAndFinishCall : Logs the start and finish call of the requests. NoLogCall : Disable request logging.").Default("").EnumVar(&cfg.RequestLoggingDecision, "NoLogCall", "LogFinishCall", "LogStartAndFinishCall", "")
 	reqLogConfig := extkingpin.RegisterRequestLoggingFlags(cmd)
