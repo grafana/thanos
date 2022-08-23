@@ -71,13 +71,13 @@ func TestMemcachedClientConfig_validate(t *testing.T) {
 func TestNewMemcachedClient(t *testing.T) {
 	// Should return error on empty YAML config.
 	conf := []byte{}
-	cache, err := NewMemcachedClient(log.NewNopLogger(), "test", conf, nil)
+	cache, err := NewMemcachedClient(log.NewNopLogger(), "test", conf, nil, nil)
 	testutil.NotOk(t, err)
 	testutil.Equals(t, (*memcachedClient)(nil), cache)
 
 	// Should return error on invalid YAML config.
 	conf = []byte("invalid")
-	cache, err = NewMemcachedClient(log.NewNopLogger(), "test", conf, nil)
+	cache, err = NewMemcachedClient(log.NewNopLogger(), "test", conf, nil, nil)
 	testutil.NotOk(t, err)
 	testutil.Equals(t, (*memcachedClient)(nil), cache)
 
@@ -87,7 +87,7 @@ addresses:
   - 127.0.0.1:11211
   - 127.0.0.2:11211
 `)
-	cache, err = NewMemcachedClient(log.NewNopLogger(), "test", conf, nil)
+	cache, err = NewMemcachedClient(log.NewNopLogger(), "test", conf, nil, nil)
 	testutil.Ok(t, err)
 	defer cache.Stop()
 
@@ -115,7 +115,7 @@ max_item_size: 1MiB
 max_get_multi_batch_size: 1
 dns_provider_update_interval: 1s
 `)
-	cache, err = NewMemcachedClient(log.NewNopLogger(), "test", conf, nil)
+	cache, err = NewMemcachedClient(log.NewNopLogger(), "test", conf, nil, nil)
 	testutil.Ok(t, err)
 	defer cache.Stop()
 
@@ -575,11 +575,11 @@ func TestMultipleClientsCanUseSameRegistry(t *testing.T) {
 	config := defaultMemcachedClientConfig
 	config.Addresses = []string{"127.0.0.1:11211"}
 
-	client1, err := NewMemcachedClientWithConfig(log.NewNopLogger(), "a", config, reg)
+	client1, err := NewMemcachedClientWithConfig(log.NewNopLogger(), "a", config, nil, reg)
 	testutil.Ok(t, err)
 	defer client1.Stop()
 
-	client2, err := NewMemcachedClientWithConfig(log.NewNopLogger(), "b", config, reg)
+	client2, err := NewMemcachedClientWithConfig(log.NewNopLogger(), "b", config, nil, reg)
 	testutil.Ok(t, err)
 	defer client2.Stop()
 }
