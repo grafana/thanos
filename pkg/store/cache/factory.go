@@ -49,7 +49,7 @@ func NewIndexCache(logger log.Logger, confContentYaml []byte, reg prometheus.Reg
 		cache, err = NewInMemoryIndexCache(logger, reg, backendConfig)
 	case string(MEMCACHED):
 		var memcached cacheutil.RemoteCacheClient
-		memcached, err = cacheutil.NewMemcachedClient(logger, "index-cache", backendConfig, reg)
+		memcached, err = cacheutil.NewMemcachedClient(logger, "index-cache", backendConfig, nil, reg)
 		if err == nil {
 			cache, err = NewRemoteIndexCache(logger, memcached, reg)
 		}

@@ -218,9 +218,8 @@ require (
 )
 
 replace (
-	// Using a 3rd-party branch for custom dialer - see https://github.com/bradfitz/gomemcache/pull/86.
-	// Required by Cortex https://github.com/cortexproject/cortex/pull/3051.
-	github.com/bradfitz/gomemcache => github.com/themihai/gomemcache v0.0.0-20180902122335-24332e2d58ab
+	// Using our own fork to add custom dialer and improve perf.
+	github.com/bradfitz/gomemcache => github.com/grafana/gomemcache v0.0.0-20220823145208-74a1c5bd8fd5
 
 	github.com/cortexproject/cortex v1.10.1-0.20211124141505-4e9fc3a2b5ab => github.com/akanshat/cortex v1.10.1-0.20211222182735-328fbeedd424
 	github.com/efficientgo/tools/core => github.com/efficientgo/tools/core v0.0.0-20210731122119-5d4a0645ce9a
